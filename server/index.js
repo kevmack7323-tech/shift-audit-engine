@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
+const db = require('./db');
 require('dotenv').config();
 
 const app = express();
@@ -10,18 +10,14 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// AWS RDS PostgreSQL Connection Pool
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: {
-        rejectUnauthorized: false
-    }
-});
+// Mount Auth Routes (Must be before app.listen)
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
 
 // Test Database Connection Route
 app.get('/api/health', async (req, res) => {
     try {
-        const result = await pool.query('SELECT NOW()');
+        const result = await db.query('SELECT NOW()');
         res.status(200).json({ status: 'healthy', dbTime: result.rows[0].now });
     } catch (err) {
         console.error('Database health check failed:', err);
@@ -42,7 +38,7 @@ app.get('/api/shifts', async (req, res) => {
             JOIN users ON shifts.user_id = users.id 
             ORDER BY shifts.start_time DESC;
         `;
-        const result = await pool.query(query);
+        const result = await db.query(query);
         res.json(result.rows);
     } catch (err) {
         console.error('Error fetching shifts:', err);
@@ -55,7 +51,7 @@ app.post('/api/shifts', async (req, res) => {
     const { user_id } = req.body;
     try {
         const query = `INSERT INTO shifts (user_id, status) VALUES ($1, 'Active') RETURNING *;`;
-        const result = await pool.query(query, [user_id]);
+        const result = await db.query(query, [user_id]);
         res.status(201).json(result.rows[0]);
     } catch (err) {
         console.error('Error opening shift:', err);
@@ -73,7 +69,7 @@ app.put('/api/checklist/:id', async (req, res) => {
             SET completed = COALESCE($1, completed), notes = COALESCE($2, notes) 
             WHERE id = $3 RETURNING *;
         `;
-        const result = await pool.query(query, [completed, notes, id]);
+        const result = await db.query(query, [completed, notes, id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Checklist item not found' });
         }
@@ -93,7 +89,7 @@ app.put('/api/shifts/:id/close', async (req, res) => {
             SET status = 'Closed', end_time = CURRENT_TIMESTAMP 
             WHERE id = $1 RETURNING *;
         `;
-        const result = await pool.query(query, [id]);
+        const result = await db.query(query, [id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Shift not found' });
         }
