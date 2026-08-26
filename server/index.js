@@ -10,6 +10,9 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+const shiftRoutes = require('./routes/shifts');
+app.use('/api/shifts', shiftRoutes);
+
 // Mount Auth Routes (Must be before app.listen)
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
