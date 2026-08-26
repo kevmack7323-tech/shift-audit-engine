@@ -103,6 +103,18 @@ app.put('/api/shifts/:id/close', async (req, res) => {
     }
 });
 
+// Get all checklist items for the active shift
+app.get('/api/checklist', async (req, res) => {
+    try {
+        const query = `SELECT id, task, completed, notes FROM checklist_items ORDER BY id ASC;`;
+        const result = await db.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching checklist items:', err);
+        res.status(500).json({ error: 'Server error fetching checklist items' });
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
