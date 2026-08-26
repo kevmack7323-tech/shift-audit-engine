@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const Dashboard = ({ user, activeShift, onStartShift, onCloseShift }) => {
-    // Local state for interactive checklist items demonstration
     const [checklist, setChecklist] = useState([
         { id: 1, task: 'Perimeter and Access Control Check', completed: true, notes: 'All entry points secured.' },
         { id: 2, task: 'CCTV and Monitoring Systems Audit', completed: false, notes: 'Pending visual inspection.' },
@@ -9,10 +8,47 @@ const Dashboard = ({ user, activeShift, onStartShift, onCloseShift }) => {
         { id: 4, task: 'End-of-Shift Handover Briefing', completed: false, notes: '' }
     ]);
 
-    const toggleItem = (id) => {
+    useEffect(() => {
+        const fetchChecklist = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/checklist');
+                if (response.ok) {
+                    const data = await response.json();
+                    setChecklist(data);
+                } else {
+                    console.error('Failed to fetch checklist from server');
+                }
+            } catch (err) {
+                console.error('Error connecting to server for checklist:', err);
+            }
+        };
+
+        fetchChecklist();
+    }, []);
+
+    const toggleItem = async (id) => {
+        const itemToUpdate = checklist.find(item => item.id === id);
+        if (!itemToUpdate) return;
+
+        const newCompletedStatus = !itemToUpdate.completed;
+
         setChecklist(checklist.map(item => 
-            item.id === id ? { ...item, completed: !item.completed } : item
+            item.id === id ? { ...item, completed: newCompletedStatus } : item
         ));
+
+        try {
+            const response = await fetch(`http://localhost:5000/api/checklist/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ completed: newCompletedStatus, notes: itemToUpdate.notes })
+            });
+            
+            if (!response.ok) {
+                console.error('Failed to update checklist item on server');
+            }
+        } catch (err) {
+            console.error('Error syncing checklist state with server:', err);
+        }
     };
 
     const completedCount = checklist.filter(item => item.completed).length;
@@ -92,7 +128,7 @@ const Dashboard = ({ user, activeShift, onStartShift, onCloseShift }) => {
                                 <input 
                                     type="checkbox" 
                                     checked={item.completed} 
-                                    onChange={() => {}} // Handled by container div click
+                                    onChange={() => {}} 
                                     className="h-5 w-5 rounded border-slate-700 text-blue-600 focus:ring-blue-500 bg-slate-900 cursor-pointer"
                                 />
                                 <div>
