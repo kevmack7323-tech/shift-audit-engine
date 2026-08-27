@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { socket } from '../services/socket';
 
 const Dashboard = ({ user, activeShift, onStartShift, onCloseShift }) => {
     const [checklist, setChecklist] = useState([
@@ -8,6 +9,23 @@ const Dashboard = ({ user, activeShift, onStartShift, onCloseShift }) => {
         { id: 4, task: 'End-of-Shift Handover Briefing', completed: false, notes: '' }
     ]);
 
+    // Socket.io real-time listener
+    useEffect(() => {
+        socket.on('shift_state_updated', (updatedData) => {
+            console.log("Received live update:", updatedData);
+            if (updatedData && updatedData.checklistId !== undefined) {
+                setChecklist(prev => prev.map(item =>
+                    item.id === updatedData.checklistId ? { ...item, completed: updatedData.completed } : item
+                ));
+            }
+        });
+
+        return () => {
+            socket.off('shift_state_updated');
+        };
+    }, []);
+
+    // Fetch initial checklist from backend
     useEffect(() => {
         const fetchChecklist = async () => {
             try {
@@ -32,9 +50,13 @@ const Dashboard = ({ user, activeShift, onStartShift, onCloseShift }) => {
 
         const newCompletedStatus = !itemToUpdate.completed;
 
-        setChecklist(checklist.map(item => 
+        // Optimistic local update
+        setChecklist(checklist.map(item =>
             item.id === id ? { ...item, completed: newCompletedStatus } : item
         ));
+
+        // Broadcast change via Socket.io to other connected operators
+        socket.emit('update_shift_state', { checklistId: id, completed: newCompletedStatus });
 
         try {
             const response = await fetch(`http://localhost:5000/api/checklist/${id}`, {
@@ -42,7 +64,7 @@ const Dashboard = ({ user, activeShift, onStartShift, onCloseShift }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ completed: newCompletedStatus, notes: itemToUpdate.notes })
             });
-            
+
             if (!response.ok) {
                 console.error('Failed to update checklist item on server');
             }
@@ -52,7 +74,7 @@ const Dashboard = ({ user, activeShift, onStartShift, onCloseShift }) => {
     };
 
     const completedCount = checklist.filter(item => item.completed).length;
-    const progressPercentage = Math.round((completedCount / checklist.length) * 100);
+    const progressPercentage = checklist.length > 0 ? Math.round((completedCount / checklist.length) * 100) : 0;
 
     return (
         <main className="p-8 max-w-7xl mx-auto space-y-8">
@@ -86,13 +108,13 @@ const Dashboard = ({ user, activeShift, onStartShift, onCloseShift }) => {
                         <p className="text-sm font-medium text-slate-200 mt-1">Manage Shift State</p>
                     </div>
                     {activeShift ? (
-                        <button 
+                        <button
                             onClick={onCloseShift}
                             className="mt-3 w-full bg-red-600 hover:bg-red-700 text-white font-semibold text-xs py-2 px-3 rounded-lg transition-colors">
                             Close & Sign Off Shift
                         </button>
                     ) : (
-                        <button 
+                        <button
                             onClick={onStartShift}
                             className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs py-2 px-3 rounded-lg transition-colors">
                             Open New Shift
@@ -115,20 +137,19 @@ const Dashboard = ({ user, activeShift, onStartShift, onCloseShift }) => {
 
                 <div className="space-y-3">
                     {checklist.map((item) => (
-                        <div 
-                            key={item.id} 
+                        <div
+                            key={item.id}
                             onClick={() => toggleItem(item.id)}
-                            className={`p-4 rounded-lg border transition-all cursor-pointer flex items-center justify-between ${
-                                item.completed 
-                                    ? 'bg-emerald-950/20 border-emerald-800/40 text-slate-300' 
+                            className={`p-4 rounded-lg border transition-all cursor-pointer flex items-center justify-between ${item.completed
+                                    ? 'bg-emerald-950/20 border-emerald-800/40 text-slate-300'
                                     : 'bg-slate-900/40 border-slate-700/60 text-slate-100 hover:border-slate-600'
-                            }`}
+                                }`}
                         >
                             <div className="flex items-center space-x-4">
-                                <input 
-                                    type="checkbox" 
-                                    checked={item.completed} 
-                                    onChange={() => {}} 
+                                <input
+                                    type="checkbox"
+                                    checked={item.completed}
+                                    onChange={() => { }}
                                     className="h-5 w-5 rounded border-slate-700 text-blue-600 focus:ring-blue-500 bg-slate-900 cursor-pointer"
                                 />
                                 <div>
@@ -139,9 +160,8 @@ const Dashboard = ({ user, activeShift, onStartShift, onCloseShift }) => {
                                 </div>
                             </div>
                             <div>
-                                <span className={`text-xs px-2.5 py-1 rounded font-semibold ${
-                                    item.completed ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-700/50' : 'bg-slate-800 text-slate-400 border border-slate-700'
-                                }`}>
+                                <span className={`text-xs px-2.5 py-1 rounded font-semibold ${item.completed ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-700/50' : 'bg-slate-800 text-slate-400 border border-slate-700'
+                                    }`}>
                                     {item.completed ? 'Verified' : 'Pending'}
                                 </span>
                             </div>
