@@ -18,7 +18,7 @@ const Navbar = ({ user, activeShift }) => {
             <div className="flex items-center space-x-6">
                 <div className="flex items-center space-x-2 bg-slate-900/50 px-3 py-1.5 rounded-full border border-slate-700">
                     <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span className="text-xs font-medium text-slate-300">AWS RDS Live</span>
+                    <span className="text-xs font-medium text-slate-300">Supabase Live</span>
                 </div>
 
                 {activeShift ? (

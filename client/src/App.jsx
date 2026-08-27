@@ -82,7 +82,7 @@ function App() {
         />
       </div>
       <footer className="bg-slate-800 border-t border-slate-700 py-4 text-center text-xs text-slate-400">
-        Shift Audit Engine &bull; Operations & Compliance Platform &bull; AWS RDS Backed
+        Shift Audit Engine &bull; Operations & Compliance Platform &bull; Supabase Backed
       </footer>
     </div>
   );
